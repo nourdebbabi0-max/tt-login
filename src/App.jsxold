@@ -1,0 +1,1804 @@
+import { useEffect, useMemo, useState } from "react";
+import "./App.css";
+import logoTT from "./assets/logo-tt.png";
+
+const API_BASE_URL = "http://localhost:8000";
+
+const cardsData = [
+  {
+    id: 1,
+    title: "Plateforme sécurisée",
+    text: "Accès centralisé aux services internes avec authentification renforcée et contrôle des accès.",
+  },
+  {
+    id: 2,
+    title: "Gestion des utilisateurs",
+    text: "Création, activation et administration des comptes collaborateurs par département.",
+  },
+  {
+    id: 3,
+    title: "Tableaux de bord",
+    text: "Consultez les données métiers, indicateurs clés et services essentiels au quotidien.",
+  },
+  {
+    id: 4,
+    title: "Windows Hello / WebAuthn",
+    text: "Renforcez la sécurité avec l’enregistrement cryptographique du poste de confiance.",
+  },
+];
+
+const IconMail = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+  </svg>
+);
+
+const IconLock = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+const IconEye = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const IconEyeOff = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-7-10-7a18.06 18.06 0 0 1 5.06-5.94" />
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 7 10 7a18.2 18.2 0 0 1-2.16 3.19" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
+function base64urlToBuffer(base64url) {
+  const base64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
+  const binary = window.atob(base64 + pad);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes.buffer;
+}
+
+function bufferToBase64url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+
+  for (let i = 0; i < bytes.byteLength; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+
+  return window.btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+function SectionCard({ title, description, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: "100%",
+        textAlign: "left",
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.06)",
+        color: "white",
+        borderRadius: 24,
+        padding: 24,
+        cursor: "pointer",
+        boxShadow: "0 16px 32px rgba(0,0,0,0.18)",
+      }}
+    >
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 10 }}>{title}</div>
+      <div style={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.6 }}>{description}</div>
+    </button>
+  );
+}
+
+function SidebarButton({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: "100%",
+        textAlign: "left",
+        border: active ? "1px solid rgba(96,165,250,0.55)" : "1px solid transparent",
+        background: active ? "rgba(59,130,246,0.18)" : "transparent",
+        color: "white",
+        borderRadius: 16,
+        padding: "14px 16px",
+        cursor: "pointer",
+        fontWeight: active ? 800 : 600,
+        fontSize: 15,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Badge({ text, tone = "default" }) {
+  const colors = {
+    success: {
+      bg: "rgba(34,197,94,0.18)",
+      border: "rgba(34,197,94,0.35)",
+      color: "#bbf7d0",
+    },
+    danger: {
+      bg: "rgba(239,68,68,0.18)",
+      border: "rgba(239,68,68,0.35)",
+      color: "#fecaca",
+    },
+    warning: {
+      bg: "rgba(245,158,11,0.18)",
+      border: "rgba(245,158,11,0.35)",
+      color: "#fde68a",
+    },
+    default: {
+      bg: "rgba(255,255,255,0.08)",
+      border: "rgba(255,255,255,0.12)",
+      color: "white",
+    },
+  };
+
+  const style = colors[tone] || colors.default;
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "6px 10px",
+        borderRadius: 999,
+        background: style.bg,
+        border: `1px solid ${style.border}`,
+        color: style.color,
+        fontSize: 12,
+        fontWeight: 700,
+      }}
+    >
+      {text}
+    </span>
+  );
+}
+
+function ModulePlaceholder({ title, description }) {
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 28,
+        padding: 28,
+      }}
+    >
+      <h2 style={{ fontSize: 30, fontWeight: 900, marginBottom: 12 }}>{title}</h2>
+      <p style={{ color: "rgba(255,255,255,0.75)", lineHeight: 1.7, marginBottom: 18 }}>
+        {description}
+      </p>
+
+      <div
+        style={{
+          borderRadius: 20,
+          padding: 18,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px dashed rgba(255,255,255,0.18)",
+          color: "rgba(255,255,255,0.7)",
+        }}
+      >
+        Module visuel prêt. On branchera ensuite les vraies données backend de ce suivi.
+      </div>
+    </div>
+  );
+}
+
+function FirstLoginInfo({ user, onContinue, onLogout }) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(145deg, #0d1e3d 0%, #0f2952 40%, #102447 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        color: "white",
+        fontFamily: "Inter, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          width: "min(720px, 100%)",
+          background: "rgba(255,255,255,0.07)",
+          border: "1px solid rgba(255,255,255,0.13)",
+          borderRadius: 32,
+          padding: "40px 36px",
+          backdropFilter: "blur(24px)",
+          boxShadow: "0 32px 64px rgba(0,0,0,0.38)",
+        }}
+      >
+        <h1 style={{ fontSize: 34, fontWeight: 900, marginBottom: 16 }}>
+          Première connexion détectée
+        </h1>
+
+        <p style={{ color: "rgba(255,255,255,0.75)", lineHeight: 1.7, marginBottom: 18 }}>
+          Bonjour <strong>{user.nom_complet}</strong>, vos identifiants sont valides.
+          Vous pouvez maintenant sécuriser votre compte avec WebAuthn / Windows Hello.
+        </p>
+
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <button
+            onClick={onContinue}
+            style={{
+              border: "none",
+              cursor: "pointer",
+              borderRadius: 999,
+              padding: "14px 28px",
+              background: "linear-gradient(90deg,#3b82f6,#8b5cf6)",
+              color: "white",
+              fontWeight: 700,
+              fontSize: 15,
+            }}
+          >
+            Continuer
+          </button>
+
+          <button
+            onClick={onLogout}
+            style={{
+              border: "1px solid rgba(255,255,255,0.2)",
+              cursor: "pointer",
+              borderRadius: 999,
+              padding: "14px 28px",
+              background: "transparent",
+              color: "white",
+              fontWeight: 700,
+              fontSize: 15,
+            }}
+          >
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WebAuthnStartPage({ email, onBack }) {
+  const [loading, setLoading] = useState(false);
+  const [resultat, setResultat] = useState(null);
+  const [erreur, setErreur] = useState("");
+  const [succes, setSucces] = useState("");
+
+  const handleStartWebAuthn = async () => {
+    setErreur("");
+    setSucces("");
+    setResultat(null);
+    setLoading(true);
+
+    try {
+      const startResponse = await fetch(`${API_BASE_URL}/api/webauthn/register/start`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const startData = await startResponse.json();
+
+      if (!startResponse.ok) {
+        setErreur(startData.detail || "Erreur start WebAuthn");
+        return;
+      }
+
+      const publicKey = startData.options;
+
+      publicKey.challenge = base64urlToBuffer(publicKey.challenge);
+      publicKey.user.id = base64urlToBuffer(publicKey.user.id);
+
+      if (publicKey.excludeCredentials?.length) {
+        publicKey.excludeCredentials = publicKey.excludeCredentials.map((cred) => ({
+          ...cred,
+          id: base64urlToBuffer(cred.id),
+        }));
+      }
+
+      const credential = await navigator.credentials.create({ publicKey });
+
+      if (!credential) {
+        setErreur("Aucune credential WebAuthn créée.");
+        return;
+      }
+
+      const credentialPayload = {
+        id: credential.id,
+        rawId: bufferToBase64url(credential.rawId),
+        type: credential.type,
+        authenticatorAttachment: credential.authenticatorAttachment || null,
+        response: {
+          clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+          attestationObject: bufferToBase64url(credential.response.attestationObject),
+        },
+      };
+
+      const finishResponse = await fetch(`${API_BASE_URL}/api/webauthn/register/finish`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          credential: credentialPayload,
+        }),
+      });
+
+      const finishData = await finishResponse.json();
+
+      if (!finishResponse.ok) {
+        setErreur(finishData.detail || "Erreur finish WebAuthn");
+        return;
+      }
+
+      setSucces("WebAuthn enregistré avec succès.");
+      setResultat(finishData);
+    } catch (err) {
+      setErreur(err?.message || "Erreur WebAuthn côté navigateur.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(145deg, #0d1e3d 0%, #0f2952 40%, #102447 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        color: "white",
+        fontFamily: "Inter, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          width: "min(900px, 100%)",
+          background: "rgba(255,255,255,0.07)",
+          border: "1px solid rgba(255,255,255,0.13)",
+          borderRadius: 32,
+          padding: "40px 36px",
+          backdropFilter: "blur(24px)",
+          boxShadow: "0 32px 64px rgba(0,0,0,0.38)",
+        }}
+      >
+        <h1 style={{ fontSize: 34, fontWeight: 900, marginBottom: 16 }}>
+          Enregistrement WebAuthn
+        </h1>
+
+        <p style={{ color: "rgba(255,255,255,0.75)", lineHeight: 1.7, marginBottom: 18 }}>
+          Utilisateur : <strong>{email}</strong>
+        </p>
+
+        <button
+          onClick={handleStartWebAuthn}
+          disabled={loading}
+          style={{
+            border: "none",
+            cursor: "pointer",
+            borderRadius: 999,
+            padding: "14px 28px",
+            background: "linear-gradient(90deg,#3b82f6,#8b5cf6)",
+            color: "white",
+            fontWeight: 700,
+            fontSize: 15,
+            marginBottom: 20,
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? "Enregistrement..." : "Enregistrer cette machine"}
+        </button>
+
+        <button
+          onClick={onBack}
+          style={{
+            marginLeft: 12,
+            border: "1px solid rgba(255,255,255,0.2)",
+            cursor: "pointer",
+            borderRadius: 999,
+            padding: "14px 28px",
+            background: "transparent",
+            color: "white",
+            fontWeight: 700,
+            fontSize: 15,
+          }}
+        >
+          Retour
+        </button>
+
+        {erreur && (
+          <div
+            style={{
+              marginTop: 18,
+              background: "rgba(220,38,38,0.18)",
+              border: "1px solid rgba(220,38,38,0.35)",
+              borderRadius: 16,
+              padding: 16,
+              color: "#fecaca",
+            }}
+          >
+            {erreur}
+          </div>
+        )}
+
+        {succes && (
+          <div
+            style={{
+              marginTop: 18,
+              background: "rgba(34,197,94,0.18)",
+              border: "1px solid rgba(34,197,94,0.35)",
+              borderRadius: 16,
+              padding: 16,
+              color: "#bbf7d0",
+            }}
+          >
+            {succes}
+          </div>
+        )}
+
+        {resultat && (
+          <pre
+            style={{
+              marginTop: 18,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 16,
+              padding: 16,
+              overflowX: "auto",
+              color: "#e5e7eb",
+              fontSize: 14,
+            }}
+          >
+            {JSON.stringify(resultat, null, 2)}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UsersManagementPage({ currentUser }) {
+  const [activeTab, setActiveTab] = useState("list");
+  const [users, setUsers] = useState([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [pageMessage, setPageMessage] = useState("");
+  const [pageError, setPageError] = useState("");
+
+  const [createForm, setCreateForm] = useState({
+    email: "",
+    nom_complet: "",
+    departement_id: "",
+    cree_par: "",
+  });
+
+  const [createLoading, setCreateLoading] = useState(false);
+
+  const [statusForm, setStatusForm] = useState({
+    user_id: "",
+    est_actif: true,
+    acteur_id: "",
+  });
+
+  const [statusLoading, setStatusLoading] = useState(false);
+
+  const [deleteForm, setDeleteForm] = useState({
+    user_id: "",
+    acteur_id: "",
+  });
+
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [departements, setDepartements] = useState([]);
+  const [departementsLoading, setDepartementsLoading] = useState(false);
+
+  const [departementForm, setDepartementForm] = useState({
+    nom_departement: "",
+  });
+  const [departementCreateLoading, setDepartementCreateLoading] = useState(false);
+
+  const fetchDepartements = async () => {
+    setDepartementsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/departements`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        return;
+      }
+
+      setDepartements(data);
+    } catch {
+      // silencieux ici pour ne pas casser l’écran
+    } finally {
+      setDepartementsLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    setPageError("");
+    setPageMessage("");
+    setListLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPageError(data.detail || "Erreur lors du chargement des utilisateurs.");
+        return;
+      }
+
+      setUsers(data);
+      setPageMessage("Liste des utilisateurs chargée avec succès.");
+    } catch (err) {
+      setPageError(err?.message || "Erreur réseau lors du chargement des utilisateurs.");
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "list") {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchDepartements();
+  }, []);
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setPageError("");
+    setPageMessage("");
+    setCreateLoading(true);
+
+    try {
+      const payload = {
+        email: createForm.email.trim(),
+        nom_complet: createForm.nom_complet.trim(),
+        departement_id: createForm.departement_id.trim(),
+        cree_par: createForm.cree_par.trim() || null,
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/create-user`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPageError(data.detail || "Erreur lors de la création de l'utilisateur.");
+        return;
+      }
+
+      setPageMessage(`Utilisateur créé avec succès : ${data.email}`);
+      setCreateForm({
+        email: "",
+        nom_complet: "",
+        departement_id: "",
+        cree_par: "",
+      });
+      setActiveTab("list");
+      setUsers([]);
+    } catch (err) {
+      setPageError(err?.message || "Erreur réseau lors de la création.");
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleCreateDepartement = async () => {
+    setPageError("");
+    setPageMessage("");
+    setDepartementCreateLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/departements`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nom_departement: departementForm.nom_departement.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPageError(data.detail || "Erreur lors de la création du département.");
+        return;
+      }
+
+      setPageMessage(`Département créé avec succès : ${data.nom_departement}`);
+      setDepartementForm({ nom_departement: "" });
+      fetchDepartements();
+    } catch (err) {
+      setPageError(err?.message || "Erreur réseau lors de la création du département.");
+    } finally {
+      setDepartementCreateLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (e) => {
+    e.preventDefault();
+    setPageError("");
+    setPageMessage("");
+    setStatusLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${statusForm.user_id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          est_actif: statusForm.est_actif,
+          acteur_id: statusForm.acteur_id.trim() || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPageError(data.detail || "Erreur lors de la mise à jour du statut.");
+        return;
+      }
+
+      setPageMessage(`Statut mis à jour pour ${data.email}`);
+      setStatusForm({
+        user_id: "",
+        est_actif: true,
+        acteur_id: "",
+      });
+      setActiveTab("list");
+      setUsers([]);
+    } catch (err) {
+      setPageError(err?.message || "Erreur réseau lors de la mise à jour du statut.");
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (e) => {
+    e.preventDefault();
+    setPageError("");
+    setPageMessage("");
+
+    const confirmation = window.confirm(
+      `Voulez-vous vraiment supprimer logiquement cet utilisateur ?\n\nUser ID : ${deleteForm.user_id}`
+    );
+
+    if (!confirmation) {
+      return;
+    }
+
+    setDeleteLoading(true);
+
+    try {
+      const query = deleteForm.acteur_id.trim()
+        ? `?acteur_id=${encodeURIComponent(deleteForm.acteur_id.trim())}`
+        : "";
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/admin/users/${deleteForm.user_id}${query}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPageError(data.detail || "Erreur lors de la suppression.");
+        return;
+      }
+
+      setPageMessage(`Utilisateur supprimé avec succès : ${data.email}`);
+      setDeleteForm({
+        user_id: "",
+        acteur_id: "",
+      });
+      setUsers((prev) => prev.filter((u) => u.id !== data.user_id));
+      setActiveTab("list");
+    } catch (err) {
+      setPageError(err?.message || "Erreur réseau lors de la suppression.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 28,
+        padding: 28,
+      }}
+    >
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 32, fontWeight: 900, marginBottom: 8 }}>Gérer les utilisateurs</h2>
+        <p style={{ color: "rgba(255,255,255,0.75)", lineHeight: 1.7 }}>
+          Interface admin complète pour consulter, créer, modifier le statut et supprimer des utilisateurs.
+        </p>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
+        {[
+          { key: "list", label: "Voir les utilisateurs" },
+          { key: "create", label: "Créer un utilisateur" },
+          { key: "status", label: "Activer / Désactiver" },
+          { key: "delete", label: "Supprimer un utilisateur" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => {
+              setActiveTab(tab.key);
+              setPageError("");
+              setPageMessage("");
+            }}
+            style={{
+              border: activeTab === tab.key ? "1px solid rgba(96,165,250,0.55)" : "1px solid rgba(255,255,255,0.14)",
+              background: activeTab === tab.key ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.05)",
+              color: "white",
+              borderRadius: 999,
+              padding: "12px 18px",
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {pageMessage && (
+        <div
+          style={{
+            marginBottom: 18,
+            background: "rgba(34,197,94,0.18)",
+            border: "1px solid rgba(34,197,94,0.35)",
+            borderRadius: 16,
+            padding: 14,
+            color: "#bbf7d0",
+          }}
+        >
+          {pageMessage}
+        </div>
+      )}
+
+      {pageError && (
+        <div
+          style={{
+            marginBottom: 18,
+            background: "rgba(239,68,68,0.18)",
+            border: "1px solid rgba(239,68,68,0.35)",
+            borderRadius: 16,
+            padding: 14,
+            color: "#fecaca",
+          }}
+        >
+          {pageError}
+        </div>
+      )}
+
+      {activeTab === "list" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+            <div style={{ color: "rgba(255,255,255,0.75)" }}>
+              Infos disponibles via l’API actuelle : identité, département, droits, activation, première connexion.
+            </div>
+            <button
+              onClick={fetchUsers}
+              disabled={listLoading}
+              style={{
+                border: "none",
+                cursor: "pointer",
+                borderRadius: 999,
+                padding: "12px 18px",
+                background: "linear-gradient(90deg,#3b82f6,#8b5cf6)",
+                color: "white",
+                fontWeight: 700,
+              }}
+            >
+              {listLoading ? "Chargement..." : "Rafraîchir"}
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gap: 16 }}>
+            {users.length === 0 && !listLoading ? (
+              <div
+                style={{
+                  padding: 20,
+                  borderRadius: 18,
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "rgba(255,255,255,0.72)",
+                }}
+              >
+                Aucun utilisateur chargé.
+              </div>
+            ) : (
+              users.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    borderRadius: 22,
+                    padding: 20,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontSize: 21, fontWeight: 800 }}>{item.nom_complet}</div>
+                      <div style={{ color: "rgba(255,255,255,0.7)", marginTop: 6 }}>{item.email}</div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <Badge text={item.est_actif ? "Actif" : "Inactif"} tone={item.est_actif ? "success" : "danger"} />
+                      <Badge text={item.compte_active ? "Compte activé" : "Compte non activé"} tone={item.compte_active ? "success" : "warning"} />
+                      <Badge text={item.premiere_connexion ? "Première connexion" : "Déjà configuré"} tone={item.premiere_connexion ? "warning" : "default"} />
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                      gap: 14,
+                    }}
+                  >
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>ID utilisateur</div>
+                      <div style={{ wordBreak: "break-word" }}>{item.id}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Email</div>
+                      <div style={{ wordBreak: "break-word" }}>{item.email}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Nom complet</div>
+                      <div>{item.nom_complet || "Non défini"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Département</div>
+                      <div>{item.departement || "Non défini"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Département ID</div>
+                      <div style={{ wordBreak: "break-word" }}>{item.departement_id || "Non défini"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Créé par</div>
+                      <div style={{ wordBreak: "break-word" }}>{item.cree_par || "Non défini"}</div>
+                    </div>
+
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Droits</div>
+                      <div>{item.droits?.length ? item.droits.join(", ") : "Aucun droit"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Nombre d’échecs de connexion</div>
+                      <div>{item.nombre_echecs_connexion ?? 0}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Mot de passe temporaire</div>
+                      <div>{item.a_mot_de_passe_temporaire ? "Oui" : "Non"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Dernier échec de connexion</div>
+                      <div>{item.date_dernier_echec_connexion || "Aucun"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Blocage jusqu’à</div>
+                      <div>{item.blocage_jusqu_a || "Non bloqué"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Dernière connexion</div>
+                      <div>{item.date_derniere_connexion || "Jamais"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Dernier changement mot de passe</div>
+                      <div>{item.date_dernier_changement_mot_de_passe || "Jamais"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Date de création</div>
+                      <div>{item.date_creation || "Non disponible"}</div>
+                    </div>
+
+                    <div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, marginBottom: 4 }}>Date de modification</div>
+                      <div>{item.date_modification || "Non disponible"}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => {
+                        setActiveTab("status");
+                        setStatusForm({
+                          user_id: item.id,
+                          est_actif: !item.est_actif,
+                          acteur_id: "",
+                        });
+                      }}
+                      style={{
+                        border: "none",
+                        cursor: "pointer",
+                        borderRadius: 999,
+                        padding: "10px 16px",
+                        background: item.est_actif
+                          ? "linear-gradient(90deg,#ef4444,#dc2626)"
+                          : "linear-gradient(90deg,#22c55e,#16a34a)",
+                        color: "white",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {item.est_actif ? "Désactiver" : "Activer"}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveTab("delete");
+                        setDeleteForm({
+                          user_id: item.id,
+                          acteur_id: "",
+                        });
+                      }}
+                      style={{
+                        border: "none",
+                        cursor: "pointer",
+                        borderRadius: 999,
+                        padding: "10px 16px",
+                        background: "linear-gradient(90deg,#f97316,#ea580c)",
+                        color: "white",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "create" && (
+        <form onSubmit={handleCreateUser} style={{ display: "grid", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Email</label>
+              <input
+                value={createForm.email}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="email@entreprise.com"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Nom complet</label>
+              <input
+                value={createForm.nom_complet}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, nom_complet: e.target.value }))}
+                placeholder="Nom complet"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Département</label>
+              <select
+                value={createForm.departement_id}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, departement_id: e.target.value }))}
+                style={inputStyle}
+              >
+                <option value="">
+                  {departementsLoading ? "Chargement des départements..." : "Sélectionner un département"}
+                </option>
+                {departements.map((dep) => (
+                  <option key={dep.id} value={dep.id}>
+                    {dep.nom_departement}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Créé par (optionnel)</label>
+              <input
+                value={createForm.cree_par}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, cree_par: e.target.value }))}
+                placeholder="UUID admin"
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: 18,
+              borderRadius: 18,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <div style={{ fontWeight: 800, marginBottom: 12 }}>Créer un nouveau département</div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <input
+                value={departementForm.nom_departement}
+                onChange={(e) => setDepartementForm({ nom_departement: e.target.value })}
+                placeholder="Ex: Analyse Operationnel"
+                style={{ ...inputStyle, maxWidth: 360 }}
+              />
+
+              <button
+                type="button"
+                onClick={handleCreateDepartement}
+                disabled={departementCreateLoading}
+                style={primaryButtonStyle}
+              >
+                {departementCreateLoading ? "Création..." : "Créer le département"}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={createLoading}
+              style={primaryButtonStyle}
+            >
+              {createLoading ? "Création..." : "Créer l’utilisateur"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {activeTab === "status" && (
+        <form onSubmit={handleUpdateStatus} style={{ display: "grid", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>User ID</label>
+              <input
+                value={statusForm.user_id}
+                onChange={(e) => setStatusForm((prev) => ({ ...prev, user_id: e.target.value }))}
+                placeholder="UUID utilisateur"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Nouveau statut</label>
+              <select
+                value={String(statusForm.est_actif)}
+                onChange={(e) =>
+                  setStatusForm((prev) => ({
+                    ...prev,
+                    est_actif: e.target.value === "true",
+                  }))
+                }
+                style={inputStyle}
+              >
+                <option value="true">Actif</option>
+                <option value="false">Inactif</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Acteur ID (optionnel)</label>
+              <input
+                value={statusForm.acteur_id}
+                onChange={(e) => setStatusForm((prev) => ({ ...prev, acteur_id: e.target.value }))}
+                placeholder="UUID admin"
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={statusLoading}
+              style={primaryButtonStyle}
+            >
+              {statusLoading ? "Mise à jour..." : "Mettre à jour le statut"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {activeTab === "delete" && (
+        <form onSubmit={handleDeleteUser} style={{ display: "grid", gap: 16 }}>
+          <div
+            style={{
+              padding: 16,
+              borderRadius: 18,
+              background: "rgba(239,68,68,0.12)",
+              border: "1px solid rgba(239,68,68,0.25)",
+              color: "#fecaca",
+            }}
+          >
+            Attention : cette action supprime logiquement l’utilisateur en le désactivant.
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>User ID</label>
+              <input
+                value={deleteForm.user_id}
+                onChange={(e) => setDeleteForm((prev) => ({ ...prev, user_id: e.target.value }))}
+                placeholder="UUID utilisateur à supprimer"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Acteur ID (optionnel)</label>
+              <input
+                value={deleteForm.acteur_id}
+                onChange={(e) => setDeleteForm((prev) => ({ ...prev, acteur_id: e.target.value }))}
+                placeholder="UUID admin"
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={deleteLoading}
+              style={{
+                border: "none",
+                cursor: "pointer",
+                borderRadius: 999,
+                padding: "14px 22px",
+                background: "linear-gradient(90deg,#ef4444,#dc2626)",
+                color: "white",
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              {deleteLoading ? "Suppression..." : "Supprimer l’utilisateur"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div style={{ marginTop: 24, color: "rgba(255,255,255,0.55)", fontSize: 13 }}>
+        Admin connecté : {currentUser.nom_complet} — {currentUser.email}
+      </div>
+    </div>
+  );
+}
+
+function AdminWorkspace({ user, activeSection, setActiveSection, onLogout, onGoWebAuthn }) {
+  const sections = [
+    { key: "home", label: "Accueil admin" },
+    { key: "users", label: "Gérer les utilisateurs" },
+    { key: "elt", label: "Suivi ELT & rapport final" },
+    { key: "avances", label: "Suivi des avances" },
+    { key: "remboursements", label: "Suivi des remboursements" },
+    { key: "service", label: "Suivi de service" },
+    { key: "parc", label: "Suivi du parc SOS & DATA" },
+    { key: "baddebts", label: "Suivi des bad debts" },
+  ];
+
+  let content = null;
+
+  if (activeSection === "home") {
+    content = (
+      <div style={{ display: "grid", gap: 18 }}>
+        <div
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 28,
+            padding: 28,
+          }}
+        >
+          <div style={{ fontSize: 38, fontWeight: 900, marginBottom: 10 }}>
+            Bienvenue, {user.nom_complet}
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.78)", lineHeight: 1.8 }}>
+            <div><strong>Email :</strong> {user.email}</div>
+            <div><strong>Département :</strong> {user.departement || "Non défini"}</div>
+            <div><strong>Droits :</strong> {user.droits?.length ? user.droits.join(", ") : "Aucun"}</div>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap" }}>
+            <button onClick={() => setActiveSection("users")} style={primaryButtonStyle}>
+              Gérer les utilisateurs
+            </button>
+
+            <button
+              onClick={onGoWebAuthn}
+              style={{
+                ...primaryButtonStyle,
+                background: "linear-gradient(90deg,#3b82f6,#8b5cf6)",
+              }}
+            >
+              Sécuriser cette machine
+            </button>
+
+            <button
+              onClick={onLogout}
+              style={{
+                border: "1px solid rgba(255,255,255,0.18)",
+                cursor: "pointer",
+                borderRadius: 999,
+                padding: "14px 22px",
+                background: "transparent",
+                color: "white",
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              Se déconnecter
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+          <SectionCard
+            title="Gérer les utilisateurs"
+            description="Visualiser les comptes, créer de nouveaux utilisateurs et modifier leur état d’activation."
+            onClick={() => setActiveSection("users")}
+          />
+          <SectionCard
+            title="Suivi ELT & rapport final"
+            description="Préparer un espace dédié au pilotage ELT, à la supervision d’exécution et au rapport final."
+            onClick={() => setActiveSection("elt")}
+          />
+          <SectionCard
+            title="Suivi des avances"
+            description="Module prêt à recevoir les données métier liées au suivi des avances."
+            onClick={() => setActiveSection("avances")}
+          />
+          <SectionCard
+            title="Suivi des remboursements"
+            description="Vue future pour les opérations, le contrôle et la traçabilité des remboursements."
+            onClick={() => setActiveSection("remboursements")}
+          />
+          <SectionCard
+            title="Suivi de service"
+            description="Espace de suivi des indicateurs de service et de performance."
+            onClick={() => setActiveSection("service")}
+          />
+          <SectionCard
+            title="Parc SOS & DATA"
+            description="Pilotage structuré du parc et des éléments SOS & DATA."
+            onClick={() => setActiveSection("parc")}
+          />
+          <SectionCard
+            title="Bad Debts"
+            description="Module dédié au suivi et à la visualisation des bad debts."
+            onClick={() => setActiveSection("baddebts")}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeSection === "users") {
+    content = <UsersManagementPage currentUser={user} />;
+  }
+
+  if (activeSection === "elt") {
+    content = (
+      <ModulePlaceholder
+        title="Suivi ELT & rapport final"
+        description="Cette section accueillera les tableaux, KPI, état d’avancement et rapport final liés au pipeline ELT."
+      />
+    );
+  }
+
+  if (activeSection === "avances") {
+    content = (
+      <ModulePlaceholder
+        title="Suivi des avances"
+        description="Cette section est prête pour intégrer les données d’avances, les filtres et les tableaux de suivi."
+      />
+    );
+  }
+
+  if (activeSection === "remboursements") {
+    content = (
+      <ModulePlaceholder
+        title="Suivi des remboursements"
+        description="Cette section centralisera le suivi détaillé des remboursements avec indicateurs et exports."
+      />
+    );
+  }
+
+  if (activeSection === "service") {
+    content = (
+      <ModulePlaceholder
+        title="Suivi de service"
+        description="Cette section servira à suivre les indicateurs et dashboards liés aux activités de service."
+      />
+    );
+  }
+
+  if (activeSection === "parc") {
+    content = (
+      <ModulePlaceholder
+        title="Suivi du parc SOS & DATA"
+        description="Cette section est prévue pour le pilotage du parc, avec une organisation claire par sous-domaines."
+      />
+    );
+  }
+
+  if (activeSection === "baddebts") {
+    content = (
+      <ModulePlaceholder
+        title="Suivi des bad debts"
+        description="Cette section accueillera les vues et statistiques associées aux bad debts."
+      />
+    );
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(145deg, #0d1e3d 0%, #0f2952 40%, #102447 100%)",
+        color: "white",
+        fontFamily: "Inter, sans-serif",
+        padding: 24,
+      }}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "290px 1fr", gap: 20 }}>
+        <aside
+          style={{
+            background: "rgba(255,255,255,0.07)",
+            border: "1px solid rgba(255,255,255,0.13)",
+            borderRadius: 30,
+            padding: 22,
+            backdropFilter: "blur(24px)",
+            boxShadow: "0 32px 64px rgba(0,0,0,0.28)",
+            height: "calc(100vh - 48px)",
+            position: "sticky",
+            top: 24,
+            overflow: "auto",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
+            <img src={logoTT} alt="TT" style={{ width: 42, height: 42, objectFit: "contain" }} />
+            <div>
+              <div style={{ fontWeight: 900, fontSize: 18 }}>TT Admin</div>
+              <div style={{ color: "rgba(255,255,255,0.62)", fontSize: 13 }}>Console de pilotage</div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: 14,
+              borderRadius: 18,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              marginBottom: 18,
+            }}
+          >
+            <div style={{ fontWeight: 800 }}>{user.nom_complet}</div>
+            <div style={{ color: "rgba(255,255,255,0.68)", marginTop: 6, fontSize: 14 }}>{user.email}</div>
+            <div style={{ marginTop: 10 }}>
+              <Badge text={user.departement || "Département non défini"} />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            {sections.map((section) => (
+              <SidebarButton
+                key={section.key}
+                label={section.label}
+                active={activeSection === section.key}
+                onClick={() => setActiveSection(section.key)}
+              />
+            ))}
+          </div>
+
+          <div style={{ marginTop: 20, display: "grid", gap: 10 }}>
+            <button onClick={onGoWebAuthn} style={primaryButtonStyle}>
+              Sécuriser cette machine
+            </button>
+            <button
+              onClick={onLogout}
+              style={{
+                border: "1px solid rgba(255,255,255,0.18)",
+                cursor: "pointer",
+                borderRadius: 999,
+                padding: "14px 20px",
+                background: "transparent",
+                color: "white",
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              Se déconnecter
+            </button>
+          </div>
+        </aside>
+
+        <main
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 30,
+            padding: 24,
+            minHeight: "calc(100vh - 48px)",
+          }}
+        >
+          {content}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+const inputStyle = {
+  width: "100%",
+  padding: "14px 16px",
+  borderRadius: 14,
+  border: "1px solid rgba(255,255,255,0.14)",
+  background: "rgba(255,255,255,0.06)",
+  color: "white",
+  outline: "none",
+  fontSize: 15,
+};
+
+const primaryButtonStyle = {
+  border: "none",
+  cursor: "pointer",
+  borderRadius: 999,
+  padding: "14px 22px",
+  background: "linear-gradient(90deg,#10b981,#059669)",
+  color: "white",
+  fontWeight: 700,
+  fontSize: 15,
+};
+
+export default function App() {
+  const [showLogin, setShowLogin] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [user, setUser] = useState(null);
+  const [authStep, setAuthStep] = useState("login");
+  const [activeSection, setActiveSection] = useState("home");
+
+  const cards = useMemo(() => cardsData, []);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    const savedAuthStep = localStorage.getItem("authStep");
+
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        setAuthStep(savedAuthStep || "dashboard");
+      } catch {
+        localStorage.removeItem("user");
+        localStorage.removeItem("authStep");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("authStep", authStep);
+    }
+  }, [authStep, user]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % cards.length);
+    }, 2600);
+
+    return () => clearInterval(interval);
+  }, [cards.length]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+
+    if (!email.trim() || !password.trim()) {
+      setError("Veuillez saisir votre email et votre mot de passe.");
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          mot_de_passe: password,
+        }),
+      });
+
+      const rawText = await response.text();
+      let data = {};
+
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        setError(`Réponse backend invalide : ${rawText}`);
+        return;
+      }
+
+      if (!response.ok) {
+        setError(data.detail || "Email ou mot de passe incorrect");
+        return;
+      }
+
+      const userData = {
+        email: data.email,
+        nom_complet: data.nom_complet,
+        departement: data.departement,
+        droits: data.droits || [],
+        premiere_connexion: data.premiere_connexion,
+      };
+
+      if (data.access_token) {
+        localStorage.setItem("token", data.access_token);
+      }
+
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+      setActiveSection("home");
+
+      if (data.premiere_connexion) {
+        setAuthStep("first-login");
+      } else {
+        setAuthStep("dashboard");
+      }
+
+      setEmail("");
+      setPassword("");
+      setError("");
+    } catch (err) {
+      setError(`Erreur réseau/front : ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("authStep");
+    setUser(null);
+    setEmail("");
+    setPassword("");
+    setShowLogin(false);
+    setError("");
+    setAuthStep("login");
+    setActiveSection("home");
+  };
+
+  if (user && authStep === "dashboard") {
+    return (
+      <AdminWorkspace
+        user={user}
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+        onLogout={handleLogout}
+        onGoWebAuthn={() => setAuthStep("webauthn-start")}
+      />
+    );
+  }
+
+  if (user && authStep === "first-login") {
+    return (
+      <FirstLoginInfo
+        user={user}
+        onContinue={() => setAuthStep("webauthn-start")}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (user && authStep === "webauthn-start") {
+    return (
+      <WebAuthnStartPage
+        email={user.email}
+        onBack={() => setAuthStep(user.premiere_connexion ? "first-login" : "dashboard")}
+      />
+    );
+  }
+
+  return (
+    <div className="page">
+      <div className="page-bg page-bg-1" />
+      <div className="page-bg page-bg-2" />
+      <div className="page-bg page-bg-3" />
+
+      <header className="top-notice">
+        <div className="top-notice-left">
+          <span className="top-notice-bell">🔔</span>
+          <span>Restez informé des dernières mises à jour et annonces internes</span>
+        </div>
+        <div className="top-notice-right">En temps réel</div>
+      </header>
+
+      <main className={`layout ${showLogin ? "layout-login" : ""}`}>
+        <section className="welcome-panel">
+          <div className="logo-wrap">
+            <img src={logoTT} alt="Tunisie Telecom" className="logo" />
+          </div>
+
+          <p className="welcome-tag">WELCOME BACK</p>
+          <h1 className="welcome-title">Votre espace interne Tunisie Telecom</h1>
+
+          <p className="welcome-desc">
+            Accédez à toutes les informations, services et outils essentiels
+            pour vous accompagner au quotidien.
+          </p>
+
+          <div className="accent-line" />
+
+          <div className="carousel-shell">
+            <div
+              className="cards-track"
+              style={{ transform: `translateX(-${activeIndex * 25}%)` }}
+            >
+              {cards.concat(cards).map((card, index) => (
+                <article
+                  key={`${card.id}-${index}`}
+                  className={`mini-card ${index % cards.length === activeIndex ? "mini-card-active" : ""}`}
+                >
+                  <h3>{card.title}</h3>
+                  <p>{card.text}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="dots">
+            {cards.map((card, index) => (
+              <span
+                key={card.id}
+                className={`dot ${index === activeIndex ? "dot-active" : ""}`}
+              />
+            ))}
+          </div>
+
+          {!showLogin && (
+            <button className="primary-btn" onClick={() => setShowLogin(true)}>
+              <span>Se connecter</span>
+              <span className="btn-arrow">→</span>
+            </button>
+          )}
+        </section>
+
+        <section className={`login-panel ${showLogin ? "login-panel-visible" : ""}`}>
+          <div className="login-card">
+            <div className="login-badge">Connexion sécurisée</div>
+            <h2 className="login-title">Identification</h2>
+            <p className="login-subtitle">
+              Connectez-vous à votre compte professionnel.
+            </p>
+
+            <form onSubmit={handleLogin}>
+              <div className="field">
+                <label className="label">Adresse email</label>
+                <div className="input-wrap">
+                  <span className="input-icon">
+                    <IconMail />
+                  </span>
+                  <input
+                    type="email"
+                    placeholder="nom@tunisietelecom.tn"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="label">Mot de passe</label>
+                <div className="input-wrap">
+                  <span className="input-icon">
+                    <IconLock />
+                  </span>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Saisissez votre mot de passe"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input input-password"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                  >
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                  </button>
+                </div>
+              </div>
+
+              {error && <div className="error-box">{error}</div>}
+
+              <button type="submit" className="login-btn" disabled={loading}>
+                {loading ? "Connexion..." : "Se connecter"}
+              </button>
+
+              <div className="separator">
+                <span />
+                <p>Accès interne protégé</p>
+                <span />
+              </div>
+
+              <div className="secure-text">
+                Vos accès sont protégés par les mécanismes de sécurité de la plateforme.
+              </div>
+
+              <button
+                type="button"
+                className="back-btn"
+                onClick={() => setShowLogin(false)}
+              >
+                ← Retour
+              </button>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
