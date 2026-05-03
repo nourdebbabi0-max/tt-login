@@ -1,15 +1,31 @@
 const commercialMenu = [
   {
+    label: "Home dashboard",
+    path: "/app/powerbi/home"
+  },
+  {
     label: "Voir le suivi des avances",
-    path: "/app/commercial/avances"
+    path: "/app/powerbi/avances"
+  },
+  {
+    label: "Suivi par heure ADV",
+    path: "/app/powerbi/avances-heure"
   },
   {
     label: "Voir le suivi des remboursements",
-    path: "/app/commercial/remboursement"
+    path: "/app/powerbi/remboursement"
+  },
+  {
+    label: "Suivi par heure REV",
+    path: "/app/powerbi/remboursement-heure"
   },
   {
     label: "Voir les services",
-    path: "/app/commercial/service"
+    path: "/app/powerbi/service"
+  },
+  {
+    label: "Aide à la décision",
+    path: "/app/powerbi/aide-decision"
   },
   {
     label: "Voir l’évolution du parc SOS et DATA",
@@ -23,10 +39,6 @@ const commercialMenu = [
 
 const analyseMenu = [
   {
-    label: "Voir ELT",
-    path: "/app/analyse/elt"
-  },
-  {
     label: "Voir les rapports finaux",
     path: "/app/analyse/rapports-finaux"
   }
@@ -38,28 +50,40 @@ const adminMenu = [
     path: "/app/admin/utilisateurs"
   },
   {
+    label: "Home dashboard",
+    path: "/app/powerbi/home"
+  },
+  {
     label: "Voir le suivi des avances",
-    path: "/app/commercial/avances"
+    path: "/app/powerbi/avances"
+  },
+  {
+    label: "Suivi par heure ADV",
+    path: "/app/powerbi/avances-heure"
   },
   {
     label: "Voir le suivi des remboursements",
-    path: "/app/commercial/remboursement"
+    path: "/app/powerbi/remboursement"
   },
   {
-    label: "Voir l’évolution des services",
-    path: "/app/commercial/service"
+    label: "Suivi par heure REV",
+    path: "/app/powerbi/remboursement-heure"
+  },
+  {
+    label: "Voir les services",
+    path: "/app/powerbi/service"
+  },
+  {
+    label: "Aide à la décision",
+    path: "/app/powerbi/aide-decision"
+  },
+  {
+    label: "Voir l’évolution du parc SOS et DATA",
+    path: "/app/commercial/parc-sos-data"
   },
   {
     label: "Voir le suivi des bad debts",
     path: "/app/commercial/bad-debts"
-  },
-  {
-    label: "Voir le suivi du parc SOS et DATA",
-    path: "/app/commercial/parc-sos-data"
-  },
-  {
-    label: "Voir ELT",
-    path: "/app/analyse/elt"
   },
   {
     label: "Voir les rapports finaux",
@@ -68,7 +92,11 @@ const adminMenu = [
 ];
 
 export function getMenuByDepartment(departement) {
-  const value = (departement || "").trim().toLowerCase();
+  const value = (departement || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
   if (value === "commercial") {
     return commercialMenu;
@@ -76,9 +104,7 @@ export function getMenuByDepartment(departement) {
 
   if (
     value === "analyse operationnel" ||
-    value === "analyse opérationnel" ||
-    value === "analyse operationnelle" ||
-    value === "analyse opérationnelle"
+    value === "analyse operationnelle"
   ) {
     return analyseMenu;
   }

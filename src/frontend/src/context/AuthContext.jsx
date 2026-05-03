@@ -1,6 +1,8 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { loginRequest, checkSessionRequest } from "../api/auth.api";
+
 import {
   clearAuthStorage,
   getToken,
@@ -40,16 +42,21 @@ export function AuthProvider({ children }) {
 
     try {
       await checkSessionRequest();
+
       setTokenState(existingToken);
       setUserState(existingUser);
+
       return true;
     } catch {
-      logout("/session-expiree");
+      clearAuthStorage();
+      setTokenState(null);
+      setUserState(null);
+      navigate("/session-expiree", { replace: true });
       return false;
     } finally {
       setSessionChecked(true);
     }
-  }, [logout]);
+  }, [navigate]);
 
   useEffect(() => {
     checkSession();
@@ -61,6 +68,37 @@ export function AuthProvider({ children }) {
     try {
       const data = await loginRequest({ email, mot_de_passe });
 
+      /*
+        Cas spécial : première connexion avec mot de passe temporaire.
+        Ici on ne stocke pas access_token, parce que ce n'est pas encore
+        une vraie session complète.
+      */
+      if (data.premiere_connexion) {
+        clearAuthStorage();
+
+        const firstLoginUser = {
+          email: data.email || email,
+          nom_complet: data.nom_complet || "",
+          premiere_connexion: true
+        };
+
+        setTokenState(null);
+        setUserState(firstLoginUser);
+
+        navigate("/premiere-connexion", {
+          replace: true,
+          state: {
+            email: data.email || email,
+            mot_de_passe_actuel: mot_de_passe
+          }
+        });
+
+        return data;
+      }
+
+      /*
+        Cas normal : login complet avec vrai access_token.
+      */
       const connectedUser = {
         email: data.email,
         nom_complet: data.nom_complet,
@@ -77,11 +115,7 @@ export function AuthProvider({ children }) {
       setTokenState(data.access_token);
       setUserState(connectedUser);
 
-      if (data.premiere_connexion) {
-        navigate("/premiere-connexion", { replace: true });
-      } else {
-        navigate("/app", { replace: true });
-      }
+      navigate("/app", { replace: true });
 
       return data;
     } finally {

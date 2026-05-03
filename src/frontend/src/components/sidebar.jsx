@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getMenuByDepartment } from "../utils/menuConfig";
+import { getMenuByDepartment } from "../utils/menuconfig.js";
 import logoTT from "../assets/logo-tt.png";
 
 export default function Sidebar() {

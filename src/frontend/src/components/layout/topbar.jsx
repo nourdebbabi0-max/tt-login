@@ -4,13 +4,22 @@ import { useAuth } from "../../hooks/useAuth";
 function getPageTitle(pathname) {
   const map = {
     "/app": "Accueil",
-    "/app/commercial/dashboard-avance": "Dashboard avancé",
-    "/app/commercial/remboursement": "Dashboard remboursement",
-    "/app/commercial/service": "Service",
+
+    "/app/powerbi/home": "Home dashboard",
+    "/app/powerbi/avances": "Suivi des avances",
+    "/app/powerbi/avances-heure": "Suivi par heure ADV",
+    "/app/powerbi/remboursement": "Suivi des remboursements",
+    "/app/powerbi/remboursement-heure": "Suivi par heure REV",
+    "/app/powerbi/service": "Suivi des services",
+    "/app/powerbi/aide-decision": "Aide à la décision",
+
     "/app/commercial/parc-sos-data": "Parc SOS DATA",
     "/app/commercial/bad-debts": "Bad Debts",
+
     "/app/analyse/elt": "ELT",
-    "/app/analyse/rapports-finaux": "Rapports finaux"
+    "/app/analyse/rapports-finaux": "Rapports finaux",
+
+    "/app/admin/utilisateurs": "Gestion des utilisateurs"
   };
 
   return map[pathname] || "Dashboard";
